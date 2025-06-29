@@ -163,7 +163,7 @@ class DatabaseService:
                 return False
 
             response = query.execute()
-            return response.data and len(response.data) > 0
+            return bool(response.data and len(response.data) > 0)
 
         except Exception as e:
             logger.error(f"Error checking duplicate tool: {e}")
