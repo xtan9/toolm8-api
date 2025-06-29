@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
+
 class CategoryBase(BaseModel):
     name: str = Field(..., max_length=100)
     slug: str = Field(..., max_length=100)
@@ -9,8 +10,10 @@ class CategoryBase(BaseModel):
     display_order: int = 0
     is_featured: bool = False
 
+
 class CategoryCreate(CategoryBase):
     pass
+
 
 class Category(CategoryBase):
     id: int
@@ -19,6 +22,7 @@ class Category(CategoryBase):
 
     class Config:
         from_attributes = True
+
 
 class ToolBase(BaseModel):
     name: str = Field(..., max_length=200)
@@ -37,27 +41,16 @@ class ToolBase(BaseModel):
     is_featured: bool = False
     source: Optional[str] = Field(None, max_length=100)
 
+
 class ToolCreate(ToolBase):
     pass
+
 
 class Tool(ToolBase):
     id: int
     click_count: int = 0
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-class ToolClickCreate(BaseModel):
-    tool_id: int
-    ip_address: Optional[str] = None
-
-class ToolClick(BaseModel):
-    id: int
-    tool_id: int
-    clicked_at: datetime
-    ip_address: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -33,13 +33,6 @@ CREATE TABLE IF NOT EXISTS tools (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tool clicks table
-CREATE TABLE IF NOT EXISTS tool_clicks (
-    id SERIAL PRIMARY KEY,
-    tool_id INTEGER REFERENCES tools(id) ON DELETE CASCADE,
-    clicked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    ip_address INET
-);
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_tools_category_id ON tools(category_id);
@@ -50,8 +43,6 @@ CREATE INDEX IF NOT EXISTS idx_tools_popularity_score ON tools(popularity_score 
 CREATE INDEX IF NOT EXISTS idx_tools_created_at ON tools(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_categories_display_order ON categories(display_order);
 CREATE INDEX IF NOT EXISTS idx_categories_is_featured ON categories(is_featured);
-CREATE INDEX IF NOT EXISTS idx_tool_clicks_tool_id ON tool_clicks(tool_id);
-CREATE INDEX IF NOT EXISTS idx_tool_clicks_clicked_at ON tool_clicks(clicked_at DESC);
 
 -- Updated at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

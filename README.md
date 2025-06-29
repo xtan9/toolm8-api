@@ -1,14 +1,15 @@
-# ToolM8 API - AI Tools Directory
+# ToolM8 Data Management API
 
-A FastAPI-based web scraper and API for building an AI tools directory, featuring automated data collection from theresanaiforthat.com and a RESTful API for accessing categorized AI tools.
+A FastAPI-based data management service for AI tools directory, focused on scraping, seeding, and managing AI tools data from various sources. This is an internal/admin service for data collection, not a public-facing API.
 
 ## Features
 
-- **Database Foundation**: PostgreSQL/Supabase schema with categories, tools, and analytics tables
+- **Data Management**: Admin endpoints for scraping, seeding, and database operations
 - **Web Scraper**: Async scraper for theresanaiforthat.com with rate limiting and duplicate detection
-- **RESTful API**: FastAPI endpoints for categories and tools
+- **Database Foundation**: PostgreSQL/Supabase schema with categories, tools, and analytics tables
+- **Background Tasks**: Non-blocking scraping and seeding operations
 - **Data Quality**: Validation, categorization, and quality scoring
-- **Analytics**: Click tracking and popularity scoring
+- **Analytics**: Database statistics and monitoring
 
 ## Project Structure
 
@@ -82,10 +83,12 @@ python app/main.py
 # Or: uvicorn app.main:app --reload
 ```
 
-### API Endpoints
-- `GET /categories` - List all categories
-- `GET /categories/{id}/tools` - Get tools by category
-- `POST /tools/{id}/click` - Record tool click
+### Admin API Endpoints
+- `GET /health` - Health check
+- `GET /admin/stats` - Database statistics and monitoring
+- `POST /admin/seed-categories` - Seed categories (background task)
+- `POST /admin/scrape-tools?max_pages=10` - Start scraping tools (background task)
+- `DELETE /admin/clear-tools?source=theresanaiforthat` - Clear tools by source
 
 ## Scraper Features
 
@@ -108,12 +111,12 @@ DATABASE_URL=postgresql://user:pass@host/db
 
 ## Expected Results
 
-After running the scraper, you should have:
-- ✅ 10 categories populated
+After running the data management operations, you should have:
+- ✅ 10 categories populated in database
 - ✅ 500-1000 AI tools scraped and categorized
 - ✅ Clean, validated data with proper categorization
 - ✅ Quality scores and features extracted
-- ✅ Ready-to-use API endpoints
+- ✅ Database ready for your frontend application to consume
 
 ## Data Quality
 
