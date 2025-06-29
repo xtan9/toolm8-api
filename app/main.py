@@ -1,25 +1,19 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from typing import Dict, Any
-import asyncio
 import logging
+from contextlib import asynccontextmanager
 
-from app.database.service import db_service
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+
 from app.database.connection import db_connection
 from app.database.seed import seed_categories
-from app.scraper.theresanaiforthat import run_scraper
+from app.database.service import db_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(
-    title="ToolM8 Data Management API",
-    description="AI Tools Data Scraping and Management Service",
-    version="1.0.0",
-)
 
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Startup logic
     logger.info("Starting ToolM8 Data Management API...")
     try:
         await db_connection.get_pool()
@@ -27,11 +21,19 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
 
+    yield
 
-@app.on_event("shutdown")
-async def shutdown_event():
+    # Shutdown logic
     logger.info("Shutting down ToolM8 Data Management API...")
     await db_connection.close_pool()
+
+
+app = FastAPI(
+    title="ToolM8 Data Management API",
+    description="AI Tools Data Scraping and Management Service",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 
 @app.get("/")

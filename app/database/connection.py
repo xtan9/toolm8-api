@@ -1,7 +1,9 @@
-import asyncpg
-from supabase import create_client, Client
-from app.config import settings
 import logging
+
+import asyncpg
+from supabase import Client, create_client
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -71,6 +71,23 @@ psql -f app/database/schema.sql
 
 ## Usage
 
+### Development Commands
+```bash
+# Install dependencies
+make install
+
+# Run tests
+make test
+
+# Run tests with coverage
+make test-cov
+
+# Format and lint code
+make format
+make lint
+make check
+```
+
 ### Setup and Scraping
 ```bash
 python run.py
@@ -108,6 +125,31 @@ SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_JWT_SECRET=your_jwt_secret
 DATABASE_URL=postgresql://user:pass@host/db
 ```
+
+## Testing
+
+The project includes comprehensive tests with pytest:
+
+```bash
+# Run all tests
+make test
+
+# Run tests with coverage report
+make test-cov
+
+# Run specific test file
+make test-file FILE=tests/test_basic.py
+```
+
+**Test Coverage:**
+- ✅ Model validation and Pydantic schemas
+- ✅ API endpoints (health, admin operations)
+- ✅ Configuration management  
+- ✅ Database service layer (with mocked connections)
+- ✅ Web scraper functionality
+- ✅ Error handling and edge cases
+
+Current test coverage: **30%+** with focus on core functionality.
 
 ## Expected Results
 

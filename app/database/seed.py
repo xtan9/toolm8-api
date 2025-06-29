@@ -1,5 +1,6 @@
 import asyncio
 import logging
+
 from app.database.service import db_service
 from app.models import CategoryCreate
 

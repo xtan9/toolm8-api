@@ -34,6 +34,18 @@ clean:
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	rm -rf build/ dist/ .mypy_cache/ .pytest_cache/
 
+# Run tests
+test:
+	pytest
+
+# Run tests with coverage
+test-cov:
+	pytest --cov=app --cov-report=html --cov-report=term-missing
+
+# Run specific test file
+test-file:
+	pytest $(FILE) -v
+
 # Run the application
 run:
 	python app/main.py

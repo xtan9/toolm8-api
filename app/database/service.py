@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseService:
-
     async def insert_category(self, category: CategoryCreate) -> Optional[Category]:
         pool = await db_connection.get_pool()
         try:

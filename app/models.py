@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -30,7 +31,7 @@ class ToolBase(BaseModel):
     description: Optional[str] = None
     website_url: Optional[str] = Field(None, max_length=500)
     logo_url: Optional[str] = Field(None, max_length=500)
-    pricing_type: Optional[str] = Field(None, regex="^(free|freemium|paid|one-time)$")
+    pricing_type: Optional[str] = Field(None, pattern="^(free|freemium|paid|one-time)$")
     price_range: Optional[str] = Field(None, max_length=100)
     has_free_trial: bool = False
     category_id: Optional[int] = None

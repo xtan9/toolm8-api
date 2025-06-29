@@ -1,0 +1,23 @@
+[MASTER]
+disable=
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    too-few-public-methods,
+    too-many-locals,
+    too-many-arguments,
+    too-many-instance-attributes,
+    import-error,
+    broad-exception-caught,
+    logging-fstring-interpolation,
+    raise-missing-from,
+    duplicate-code,
+    unused-argument,
+    no-else-return,
+    line-too-long
+
+[FORMAT]
+max-line-length=100
+
+[MESSAGES CONTROL]
+confidence=HIGH

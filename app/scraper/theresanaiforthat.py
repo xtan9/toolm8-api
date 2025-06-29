@@ -1,14 +1,14 @@
 import asyncio
-import aiohttp
 import logging
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
-from typing import List, Dict, Optional, Any
 import re
-import json
-from app.models import ToolCreate
+from typing import Any, Dict, List, Optional
+from urllib.parse import urljoin
+
+import aiohttp
+from bs4 import BeautifulSoup
+
 from app.database.service import db_service
-import time
+from app.models import ToolCreate
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -271,7 +271,6 @@ class TheresAnAIForThatScraper:
 
             tool_data = await self.scrape_tool_page(tool_url)
             if tool_data and tool_data.get("name"):
-
                 slug = db_service.generate_slug(tool_data["name"])
                 is_duplicate = await db_service.check_duplicate_tool(
                     name=tool_data["name"], website_url=tool_data.get("website_url"), slug=slug
