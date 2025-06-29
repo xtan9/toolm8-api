@@ -16,7 +16,7 @@ async def main():
     
     if choice in ["1", "3"]:
         print("\n🌱 Seeding categories...")
-        await seed_categories()
+        seed_categories()
         print("✅ Categories seeded successfully")
     
     if choice in ["2", "3"]:
