@@ -16,16 +16,15 @@ async def lifespan(_app: FastAPI):
     # Startup logic
     logger.info("Starting ToolM8 Data Management API...")
     try:
-        await db_connection.get_pool()
-        logger.info("Database connection established")
+        db_connection.get_client()
+        logger.info("Supabase client initialized")
     except Exception as e:
-        logger.error(f"Failed to connect to database: {e}")
+        logger.error(f"Failed to initialize Supabase client: {e}")
 
     yield
 
     # Shutdown logic
     logger.info("Shutting down ToolM8 Data Management API...")
-    await db_connection.close_pool()
 
 
 app = FastAPI(
@@ -72,29 +71,42 @@ async def scrape_tools_endpoint(background_tasks: BackgroundTasks, max_pages: in
 async def get_database_stats():
     """Get database statistics"""
     try:
-        pool = await db_connection.get_pool()
-        async with pool.acquire() as conn:
-            categories_count = await conn.fetchval("SELECT COUNT(*) FROM categories")
-            tools_count = await conn.fetchval("SELECT COUNT(*) FROM tools")
+        client = db_connection.get_client()
 
-            # Recent tools
-            recent_tools = await conn.fetchval(
-                "SELECT COUNT(*) FROM tools WHERE created_at > NOW() - INTERVAL '24 hours'"
-            )
+        # Get categories count
+        categories_response = client.table("categories").select("id", count="exact").execute()
+        categories_count = categories_response.count or 0
 
-            # Tools by source
-            source_stats = await conn.fetch(
-                "SELECT source, COUNT(*) as count FROM tools GROUP BY source ORDER BY count DESC"
-            )
+        # Get tools count
+        tools_response = client.table("tools").select("id", count="exact").execute()
+        tools_count = tools_response.count or 0
 
-            return {
-                "categories_count": categories_count,
-                "tools_count": tools_count,
-                "recent_tools_24h": recent_tools,
-                "sources": [
-                    {"source": row["source"], "count": row["count"]} for row in source_stats
-                ],
-            }
+        # Get recent tools (last 24 hours)
+        from datetime import datetime, timedelta
+
+        yesterday = (datetime.now() - timedelta(days=1)).isoformat()
+        recent_response = (
+            client.table("tools").select("id", count="exact").gte("created_at", yesterday).execute()
+        )
+        recent_tools = recent_response.count or 0
+
+        # Get tools by source
+        sources_response = client.table("tools").select("source").execute()
+        source_counts = {}
+        if sources_response.data:
+            for row in sources_response.data:
+                source = row.get("source", "unknown")
+                source_counts[source] = source_counts.get(source, 0) + 1
+
+        sources = [{"source": k, "count": v} for k, v in source_counts.items()]
+        sources.sort(key=lambda x: x["count"], reverse=True)
+
+        return {
+            "categories_count": categories_count,
+            "tools_count": tools_count,
+            "recent_tools_24h": recent_tools,
+            "sources": sources,
+        }
     except Exception as e:
         logger.error(f"Error getting stats: {e}")
         raise HTTPException(status_code=500, detail="Failed to get stats")
@@ -104,17 +116,17 @@ async def get_database_stats():
 async def clear_tools(source: str = None):
     """Clear tools from database, optionally by source"""
     try:
-        pool = await db_connection.get_pool()
-        async with pool.acquire() as conn:
-            if source:
-                result = await conn.execute("DELETE FROM tools WHERE source = $1", source)
-                message = f"Cleared tools from source: {source}"
-            else:
-                result = await conn.execute("DELETE FROM tools")
-                message = "Cleared all tools"
+        client = db_connection.get_client()
 
-            rows_affected = int(result.split()[-1])
-            return {"message": message, "rows_deleted": rows_affected}
+        if source:
+            response = client.table("tools").delete().eq("source", source).execute()
+            message = f"Cleared tools from source: {source}"
+        else:
+            response = client.table("tools").delete().neq("id", 0).execute()  # Delete all
+            message = "Cleared all tools"
+
+        rows_affected = len(response.data) if response.data else 0
+        return {"message": message, "rows_deleted": rows_affected}
     except Exception as e:
         logger.error(f"Error clearing tools: {e}")
         raise HTTPException(status_code=500, detail="Failed to clear tools")
@@ -131,7 +143,7 @@ async def run_scraper_task(max_pages: int = 10):
 
             if tools:
                 logger.info(f"Inserting {len(tools)} tools into database...")
-                inserted_count = await db_service.bulk_insert_tools(tools)
+                inserted_count = db_service.bulk_insert_tools(tools)
                 logger.info(f"Successfully inserted {inserted_count} tools")
             else:
                 logger.warning("No tools scraped")

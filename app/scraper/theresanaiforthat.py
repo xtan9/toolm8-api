@@ -92,7 +92,7 @@ class TheresAnAIForThatScraper:
     async def determine_category_id(self, tags: List[str], description: str = "") -> Optional[int]:
         text_to_check = " ".join(tags + [description]).lower()
 
-        categories = await db_service.get_all_categories()
+        categories = db_service.get_all_categories()
         category_map = {cat.name: cat.id for cat in categories}
 
         for keyword, category_names in self.category_mapping.items():
@@ -272,7 +272,7 @@ class TheresAnAIForThatScraper:
             tool_data = await self.scrape_tool_page(tool_url)
             if tool_data and tool_data.get("name"):
                 slug = db_service.generate_slug(tool_data["name"])
-                is_duplicate = await db_service.check_duplicate_tool(
+                is_duplicate = db_service.check_duplicate_tool(
                     name=tool_data["name"], website_url=tool_data.get("website_url"), slug=slug
                 )
 
@@ -307,7 +307,7 @@ async def run_scraper():
 
             if tools:
                 logger.info(f"Inserting {len(tools)} tools into database...")
-                inserted_count = await db_service.bulk_insert_tools(tools)
+                inserted_count = db_service.bulk_insert_tools(tools)
                 logger.info(f"Successfully inserted {inserted_count} tools")
             else:
                 logger.warning("No tools scraped")

@@ -1,6 +1,5 @@
 import logging
 
-import asyncpg
 from supabase import Client, create_client
 
 from app.config import settings
@@ -10,26 +9,17 @@ logger = logging.getLogger(__name__)
 
 class DatabaseConnection:
     def __init__(self):
-        self.supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
-        self._pool = None
+        self._client = None
 
-    async def get_pool(self):
-        if self._pool is None:
+    def get_client(self) -> Client:
+        if self._client is None:
             try:
-                self._pool = await asyncpg.create_pool(
-                    settings.DATABASE_URL, min_size=5, max_size=20
-                )
-                logger.info("Database pool created successfully")
+                self._client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+                logger.info("Supabase client created successfully")
             except Exception as e:
-                logger.error(f"Failed to create database pool: {e}")
+                logger.error(f"Failed to create Supabase client: {e}")
                 raise
-        return self._pool
-
-    async def close_pool(self):
-        if self._pool:
-            await self._pool.close()
-            self._pool = None
-            logger.info("Database pool closed")
+        return self._client
 
 
 db_connection = DatabaseConnection()

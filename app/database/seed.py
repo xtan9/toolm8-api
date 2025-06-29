@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-async def seed_categories():
+def seed_categories():
     categories_data = [
         {
             "name": "Writing & Content",
@@ -87,10 +87,10 @@ async def seed_categories():
     for category_data in categories_data:
         try:
             category = CategoryCreate(**category_data)
-            existing = await db_service.find_category_by_name(category.name)
+            existing = db_service.find_category_by_name(category.name)
 
             if not existing:
-                result = await db_service.insert_category(category)
+                result = db_service.insert_category(category)
                 if result:
                     logger.info(f"Created category: {category.name}")
                 else:
@@ -105,4 +105,4 @@ async def seed_categories():
 
 
 if __name__ == "__main__":
-    asyncio.run(seed_categories())
+    seed_categories()
