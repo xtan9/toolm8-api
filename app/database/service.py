@@ -79,9 +79,7 @@ class DatabaseService:
         logger.info(f"Bulk inserted {inserted_count} tools")
         return inserted_count
 
-    def get_tools_by_tags(
-        self, tags: List[str], limit: int = 50, offset: int = 0
-    ) -> List[Tool]:
+    def get_tools_by_tags(self, tags: List[str], limit: int = 50, offset: int = 0) -> List[Tool]:
         """Get tools that contain any of the specified tags"""
         client = db_connection.get_client()
         try:
@@ -89,7 +87,7 @@ class DatabaseService:
             response = (
                 client.table("tools")
                 .select("*")
-                .overlaps("tags", tags)
+                .filter("tags", "cs", f'{{{",".join(tags)}}}')
                 .order("popularity_score", desc=True)
                 .order("quality_score", desc=True)
                 .limit(limit)
@@ -150,10 +148,11 @@ class DatabaseService:
         """Search tools by name and description"""
         client = db_connection.get_client()
         try:
-            response = (
+            # Search by name first
+            name_response = (
                 client.table("tools")
                 .select("*")
-                .or_(f"name.ilike.%{query}%,description.ilike.%{query}%")
+                .filter("name", "ilike", f"%{query}%")
                 .order("popularity_score", desc=True)
                 .order("quality_score", desc=True)
                 .limit(limit)
@@ -161,9 +160,38 @@ class DatabaseService:
                 .execute()
             )
 
-            if response.data:
-                return [Tool(**item) for item in response.data]
-            return []
+            # Search by description
+            desc_response = (
+                client.table("tools")
+                .select("*")
+                .filter("description", "ilike", f"%{query}%")
+                .order("popularity_score", desc=True)
+                .order("quality_score", desc=True)
+                .limit(limit)
+                .offset(offset)
+                .execute()
+            )
+
+            # Combine and deduplicate results
+            tools = []
+            seen_ids = set()
+
+            if name_response.data:
+                for item in name_response.data:
+                    if item["id"] not in seen_ids:
+                        tools.append(Tool(**item))
+                        seen_ids.add(item["id"])
+
+            if desc_response.data:
+                for item in desc_response.data:
+                    if item["id"] not in seen_ids:
+                        tools.append(Tool(**item))
+                        seen_ids.add(item["id"])
+
+            # Sort by popularity and quality score
+            tools.sort(key=lambda x: (-x.popularity_score, -x.quality_score))
+            return tools[:limit]
+
         except Exception as e:
             logger.error(f"Error searching tools: {e}")
             return []
@@ -173,7 +201,7 @@ class DatabaseService:
         client = db_connection.get_client()
         try:
             response = client.table("tools").select("tags").execute()
-            
+
             if response.data:
                 all_tags = set()
                 for row in response.data:
@@ -186,7 +214,10 @@ class DatabaseService:
             return []
 
     def check_duplicate_tool(
-        self, name: str = None, website_url: str = None, slug: str = None
+        self,
+        name: Optional[str] = None,
+        website_url: Optional[str] = None,
+        slug: Optional[str] = None,
     ) -> bool:
         client = db_connection.get_client()
         try:
@@ -231,7 +262,8 @@ class DatabaseService:
             return False
 
     def generate_slug(self, text: str) -> str:
-        return slugify(text, lowercase=True, max_length=200)
+        result = slugify(text, lowercase=True, max_length=200)
+        return str(result)
 
 
 db_service = DatabaseService()

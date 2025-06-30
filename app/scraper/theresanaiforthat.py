@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 
 
 class TheresAnAIForThatScraper:
-    def __init__(self):
+    def __init__(self) -> None:
         self.base_url = "https://theresanaiforthat.com"
-        self.session = None
+        self.session: Optional[aiohttp.ClientSession] = None
         self.rate_limit_delay = 2.5
-        self.scraped_tools = []
+        self.scraped_tools: List[ToolCreate] = []
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "TheresAnAIForThatScraper":
         self.session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=30),
             headers={
@@ -30,7 +30,7 @@ class TheresAnAIForThatScraper:
         )
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self.session:
             await self.session.close()
 
@@ -38,11 +38,13 @@ class TheresAnAIForThatScraper:
         try:
             await asyncio.sleep(self.rate_limit_delay)
 
+            if self.session is None:
+                return None
             async with self.session.get(url) as response:
                 if response.status == 200:
                     content = await response.text()
                     logger.info(f"Successfully fetched: {url}")
-                    return content
+                    return str(content)
                 else:
                     logger.warning(f"Failed to fetch {url}: Status {response.status}")
                     return None
@@ -68,7 +70,7 @@ class TheresAnAIForThatScraper:
     def enhance_tags(self, tags: List[str], description: str = "", name: str = "") -> List[str]:
         """Enhance tags based on content analysis"""
         text_to_check = f"{name} {description} {' '.join(tags)}".lower()
-        
+
         # Common AI tool categories as tags
         category_keywords = {
             "writing": ["writing", "content", "text", "blog", "copy", "editor", "grammar"],
@@ -82,17 +84,17 @@ class TheresAnAIForThatScraper:
             "productivity": ["productivity", "task", "project", "management", "organize"],
             "research": ["research", "learning", "education", "study", "knowledge"],
         }
-        
+
         enhanced_tags = set(tags)  # Start with existing tags
-        
+
         for category_tag, keywords in category_keywords.items():
             if any(keyword in text_to_check for keyword in keywords):
                 enhanced_tags.add(category_tag)
-        
+
         # Add general AI tag if not present
         if not any(tag.lower() in ["ai", "artificial-intelligence"] for tag in enhanced_tags):
             enhanced_tags.add("ai")
-        
+
         return sorted(list(enhanced_tags))[:10]  # Limit to 10 tags
 
     def clean_text(self, text: str) -> str:
@@ -142,7 +144,7 @@ class TheresAnAIForThatScraper:
         soup = BeautifulSoup(content, "html.parser")
 
         try:
-            tool_data = {}
+            tool_data: Dict[str, Any] = {}
 
             title_elem = soup.find("h1") or soup.find("title")
             if title_elem:
@@ -190,13 +192,16 @@ class TheresAnAIForThatScraper:
             )
             tool_data.update(pricing_info)
 
+            tags_for_features: List[str] = tool_data.get("tags", [])  # type: ignore[assignment]
+            if isinstance(tags_for_features, str):
+                tags_for_features = [tags_for_features]
             tool_data["features"] = self.extract_features(
-                tool_data.get("description", ""), tool_data.get("tags", [])
-            )
+                tool_data.get("description", ""), tags_for_features
+            )  # type: ignore[assignment]
 
             tool_data["quality_score"] = min(
                 10, max(1, 5 + len(tool_data.get("features", [])) // 2)
-            )
+            )  # type: ignore[assignment]
             tool_data["source"] = "theresanaiforthat"
 
             return tool_data
@@ -273,9 +278,9 @@ class TheresAnAIForThatScraper:
 
                     # Enhance tags based on content analysis
                     enhanced_tags = self.enhance_tags(
-                        tool_data.get("tags", []), 
+                        tool_data.get("tags", []),
                         tool_data.get("description", ""),
-                        tool_data.get("name", "")
+                        tool_data.get("name", ""),
                     )
                     tool_data["tags"] = enhanced_tags
 
@@ -295,7 +300,7 @@ class TheresAnAIForThatScraper:
         return scraped_tools
 
 
-async def run_scraper():
+async def run_scraper() -> None:
     async with TheresAnAIForThatScraper() as scraper:
         try:
             tools = await scraper.scrape_all_tools(max_pages=10)

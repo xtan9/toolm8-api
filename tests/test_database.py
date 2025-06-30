@@ -134,7 +134,7 @@ class TestDatabaseService:
         # Setup chain of mock calls
         mock_table = Mock()
         mock_select = Mock()
-        mock_overlaps = Mock()
+        mock_filter = Mock()
         mock_order1 = Mock()
         mock_order2 = Mock()
         mock_limit = Mock()
@@ -142,8 +142,8 @@ class TestDatabaseService:
         
         self.mock_client.table.return_value = mock_table
         mock_table.select.return_value = mock_select
-        mock_select.overlaps.return_value = mock_overlaps
-        mock_overlaps.order.return_value = mock_order1
+        mock_select.filter.return_value = mock_filter
+        mock_filter.order.return_value = mock_order1
         mock_order1.order.return_value = mock_order2
         mock_order2.limit.return_value = mock_limit
         mock_limit.offset.return_value = mock_offset
@@ -185,8 +185,9 @@ class TestDatabaseService:
         """Test searching tools by name and description"""
         mock_get_client.return_value = self.mock_client
         
-        mock_response = Mock()
-        mock_response.data = [{
+        # Mock data for name search
+        name_response = Mock()
+        name_response.data = [{
             'id': 1, 'name': 'AI Writing Tool', 'slug': 'ai-writing-tool',
             'description': 'Tool for writing with AI', 'website_url': 'https://test.com',
             'logo_url': None, 'pricing_type': 'free', 'price_range': None,
@@ -196,10 +197,14 @@ class TestDatabaseService:
             'created_at': '2023-01-01T00:00:00Z', 'updated_at': '2023-01-01T00:00:00Z'
         }]
         
-        # Setup chain of mock calls
+        # Mock data for description search
+        desc_response = Mock()
+        desc_response.data = []  # No additional results from description search
+        
+        # Setup chain of mock calls for both name and description searches
         mock_table = Mock()
         mock_select = Mock()
-        mock_or = Mock()
+        mock_filter = Mock()
         mock_order1 = Mock()
         mock_order2 = Mock()
         mock_limit = Mock()
@@ -207,12 +212,14 @@ class TestDatabaseService:
         
         self.mock_client.table.return_value = mock_table
         mock_table.select.return_value = mock_select
-        mock_select.or_.return_value = mock_or
-        mock_or.order.return_value = mock_order1
+        mock_select.filter.return_value = mock_filter
+        mock_filter.order.return_value = mock_order1
         mock_order1.order.return_value = mock_order2
         mock_order2.limit.return_value = mock_limit
         mock_limit.offset.return_value = mock_offset
-        mock_offset.execute.return_value = mock_response
+        
+        # Return different responses for name vs description search
+        mock_offset.execute.side_effect = [name_response, desc_response]
         
         result = self.service.search_tools("writing", limit=10, offset=0)
         

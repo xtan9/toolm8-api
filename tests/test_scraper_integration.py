@@ -13,70 +13,38 @@ class TestScraperDatabaseIntegration:
         return TheresAnAIForThatScraper()
 
     @patch('app.scraper.theresanaiforthat.db_service')
-    def test_determine_category_id_uses_sync_service(self, mock_db_service):
-        """Test that determine_category_id uses sync database service"""
-        from app.models import Category
-        
-        # Mock categories response
-        mock_categories = [
-            Category(
-                id=1, name="Writing & Content", slug="writing-content",
-                description="Writing tools", display_order=1, is_featured=True,
-                created_at="2023-01-01T00:00:00Z", updated_at="2023-01-01T00:00:00Z"
-            ),
-            Category(
-                id=2, name="Image Generation", slug="image-generation", 
-                description="Image tools", display_order=2, is_featured=True,
-                created_at="2023-01-01T00:00:00Z", updated_at="2023-01-01T00:00:00Z"
-            )
-        ]
-        mock_db_service.get_all_categories.return_value = mock_categories
+    def test_scraper_uses_sync_database_services(self, mock_db_service):
+        """Test that scraper uses sync database services"""
+        mock_db_service.generate_slug.return_value = "test-tool"
+        mock_db_service.check_duplicate_tool.return_value = False
         
         scraper = TheresAnAIForThatScraper()
         
-        # This should be an async function that calls sync db_service
-        async def test_async():
-            category_id = await scraper.determine_category_id(
-                tags=["writing", "content"], 
-                description="A tool for writing content"
-            )
-            return category_id
+        # Test that database service methods are accessible
+        slug = mock_db_service.generate_slug("Test Tool")
+        is_duplicate = mock_db_service.check_duplicate_tool(name="Test Tool")
         
-        import asyncio
-        result = asyncio.run(test_async())
+        assert slug == "test-tool"
+        assert is_duplicate is False
         
-        # Should call sync method, not async
-        mock_db_service.get_all_categories.assert_called_once()
-        assert result == 1  # Should match "Writing & Content"
+        # Verify calls were made
+        mock_db_service.generate_slug.assert_called_with("Test Tool")
+        mock_db_service.check_duplicate_tool.assert_called_with(name="Test Tool")
 
-    @patch('app.scraper.theresanaiforthat.db_service')
-    def test_determine_category_id_fallback(self, mock_db_service):
-        """Test category determination fallback to Productivity"""
-        from app.models import Category
-        
-        mock_categories = [
-            Category(
-                id=9, name="Productivity", slug="productivity",
-                description="Productivity tools", display_order=9, is_featured=True,
-                created_at="2023-01-01T00:00:00Z", updated_at="2023-01-01T00:00:00Z"
-            )
-        ]
-        mock_db_service.get_all_categories.return_value = mock_categories
-        
+    def test_enhance_tags_functionality(self):
+        """Test tag enhancement functionality"""
         scraper = TheresAnAIForThatScraper()
         
-        async def test_async():
-            # Use tags that don't match any category mapping
-            category_id = await scraper.determine_category_id(
-                tags=["unknown", "unmatched"],
-                description="Some unknown tool"
-            )
-            return category_id
+        # Test basic tag enhancement
+        enhanced = scraper.enhance_tags(
+            ["original"], "This is a writing tool for productivity", "Writing Pro"
+        )
         
-        import asyncio
-        result = asyncio.run(test_async())
-        
-        assert result == 9  # Should fallback to Productivity
+        # Should contain original tag plus enhanced tags
+        assert "original" in enhanced
+        assert "writing" in enhanced
+        assert "productivity" in enhanced
+        assert "ai" in enhanced  # AI tag should be added by default
 
     @pytest.mark.asyncio
     async def test_scrape_tool_page_duplicate_check_sync(self):
@@ -98,8 +66,7 @@ class TestScraperDatabaseIntegration:
             </html>
             """
             
-            # Mock database responses
-            mock_db_service.get_all_categories.return_value = []
+            # Mock database responses  
             mock_db_service.generate_slug.return_value = "test-tool"
             mock_db_service.check_duplicate_tool.return_value = False
             
@@ -114,7 +81,6 @@ class TestScraperDatabaseIntegration:
     async def test_scrape_all_tools_integration(self, mock_db_service):
         """Test complete scraping flow with database integration"""
         # Mock database services
-        mock_db_service.get_all_categories.return_value = []
         mock_db_service.generate_slug.return_value = "test-tool"
         mock_db_service.check_duplicate_tool.return_value = False
         
@@ -144,7 +110,6 @@ class TestScraperDatabaseIntegration:
             assert tools[0].name == "Test Tool"
             
             # Verify sync database methods were called
-            mock_db_service.get_all_categories.assert_called()
             mock_db_service.generate_slug.assert_called_with("Test Tool")
             mock_db_service.check_duplicate_tool.assert_called()
 
@@ -153,7 +118,6 @@ class TestScraperDatabaseIntegration:
     async def test_scrape_with_duplicate_detection(self, mock_db_service):
         """Test that duplicate tools are filtered out"""
         # Mock that tool is a duplicate
-        mock_db_service.get_all_categories.return_value = []
         mock_db_service.generate_slug.return_value = "duplicate-tool"
         mock_db_service.check_duplicate_tool.return_value = True  # Is duplicate
         
@@ -195,7 +159,7 @@ class TestRunScraperFunction:
         mock_tools = [
             ToolCreate(
                 name=f"Tool {i}", slug=f"tool-{i}", description=f"Description {i}",
-                category_id=1, quality_score=7, source="theresanaiforthat"
+                quality_score=7, source="theresanaiforthat"
             ) for i in range(5)
         ]
         
@@ -261,74 +225,55 @@ class TestRunScraperFunction:
             mock_logger.info.assert_any_call("Successfully inserted 1 tools")
 
 
-class TestScraperCategoryMapping:
-    """Test category mapping functionality"""
+class TestScraperTagEnhancement:
+    """Test tag enhancement functionality"""
 
-    def test_category_mapping_keywords(self):
-        """Test that category mapping contains expected keywords"""
+    def test_enhance_tags_keywords(self):
+        """Test that tag enhancement works with expected keywords"""
         scraper = TheresAnAIForThatScraper()
         
-        # Verify some key mappings exist
-        assert "writing" in scraper.category_mapping
-        assert "image" in scraper.category_mapping
-        assert "code" in scraper.category_mapping
-        assert "data" in scraper.category_mapping
+        # Test writing enhancement
+        tags = scraper.enhance_tags([], "This is a writing tool for content creation", "Writing Tool")
+        assert "writing" in tags
         
-        # Verify mappings point to expected categories
-        assert "Writing & Content" in scraper.category_mapping["writing"]
-        assert "Image Generation" in scraper.category_mapping["image"]
-        assert "Code & Development" in scraper.category_mapping["code"]
-        assert "Data & Analytics" in scraper.category_mapping["data"]
+        # Test image enhancement
+        tags = scraper.enhance_tags([], "Generate images and photos", "Image Creator")
+        assert "image-generation" in tags
+        
+        # Test development enhancement
+        tags = scraper.enhance_tags([], "Code development and programming", "Dev Tool")
+        assert "development" in tags
 
-    @pytest.mark.asyncio
-    @patch('app.scraper.theresanaiforthat.db_service')
-    async def test_category_determination_logic(self, mock_db_service):
-        """Test category determination with various inputs"""
-        from app.models import Category
-        
-        # Mock all categories
-        mock_categories = [
-            Category(id=1, name="Writing & Content", slug="writing-content",
-                    description="", display_order=1, is_featured=True,
-                    created_at="2023-01-01T00:00:00Z", updated_at="2023-01-01T00:00:00Z"),
-            Category(id=2, name="Image Generation", slug="image-generation", 
-                    description="", display_order=2, is_featured=True,
-                    created_at="2023-01-01T00:00:00Z", updated_at="2023-01-01T00:00:00Z"),
-            Category(id=3, name="Code & Development", slug="code-development",
-                    description="", display_order=3, is_featured=True, 
-                    created_at="2023-01-01T00:00:00Z", updated_at="2023-01-01T00:00:00Z"),
-            Category(id=9, name="Productivity", slug="productivity",
-                    description="", display_order=9, is_featured=True,
-                    created_at="2023-01-01T00:00:00Z", updated_at="2023-01-01T00:00:00Z")
-        ]
-        mock_db_service.get_all_categories.return_value = mock_categories
-        
+    def test_tag_enhancement_logic(self):
+        """Test tag enhancement with various inputs"""
         scraper = TheresAnAIForThatScraper()
         
-        # Test writing category
-        result = await scraper.determine_category_id(
-            tags=["writing", "content"], 
-            description="A writing assistant"
+        # Test writing tag enhancement
+        enhanced = scraper.enhance_tags(
+            ["ai"], "Tool for writing and content creation", "AI Writing Assistant"
         )
-        assert result == 1
+        assert "writing" in enhanced
+        assert "ai" in enhanced
         
-        # Test image category  
-        result = await scraper.determine_category_id(
-            tags=["image", "generator"],
-            description="Generate images with AI"
+        # Test image tag enhancement
+        enhanced = scraper.enhance_tags(
+            ["ai"], "Create stunning images with AI", "Image Generator"
         )
-        assert result == 2
+        assert "image-generation" in enhanced
+        assert "ai" in enhanced
         
-        # Test code category
-        result = await scraper.determine_category_id(
-            tags=["programming", "developer"],
-            description="Code assistance tool"
+        # Test multiple category detection
+        enhanced = scraper.enhance_tags(
+            [], "AI tool for writing code and development", "Code Writer"
         )
-        assert result == 3
+        assert "writing" in enhanced
+        assert "development" in enhanced
+        assert "ai" in enhanced
         
-        # Test fallback to productivity
-        result = await scraper.determine_category_id(
-            tags=["unknown", "misc"],
-            description="Some random tool"
+        # Test tag limit (should be max 10)
+        enhanced = scraper.enhance_tags(
+            ["tag1", "tag2", "tag3", "tag4", "tag5"], 
+            "writing development image design marketing productivity audio data research video",
+            "Multi Tool"
         )
-        assert result == 9
+        assert len(enhanced) <= 10

@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator, Dict, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup logic
     logger.info("Starting ToolM8 Data Management API...")
     try:
@@ -35,17 +36,19 @@ app = FastAPI(
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     return {"message": "ToolM8 Data Management API - AI Tools Scraping Service"}
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     return {"status": "healthy", "service": "toolm8-data-api"}
 
 
 @app.post("/admin/scrape-tools")
-async def scrape_tools_endpoint(background_tasks: BackgroundTasks, max_pages: int = 10):
+async def scrape_tools_endpoint(
+    background_tasks: BackgroundTasks, max_pages: int = 10
+) -> dict[str, str]:
     """Start scraping tools from theresanaiforthat.com"""
     try:
         background_tasks.add_task(run_scraper_task, max_pages)
@@ -56,17 +59,19 @@ async def scrape_tools_endpoint(background_tasks: BackgroundTasks, max_pages: in
 
 
 @app.get("/admin/stats")
-async def get_database_stats():
+async def get_database_stats() -> dict[str, Any]:
     """Get database statistics"""
     try:
         client = db_connection.get_client()
 
         # Get categories count
-        categories_response = client.table("categories").select("id", count="exact").execute()
+        categories_response = (
+            client.table("categories").select("id", count="exact").execute()  # type: ignore[arg-type]
+        )
         categories_count = categories_response.count or 0
 
         # Get tools count
-        tools_response = client.table("tools").select("id", count="exact").execute()
+        tools_response = client.table("tools").select("id", count="exact").execute()  # type: ignore[arg-type]
         tools_count = tools_response.count or 0
 
         # Get recent tools (last 24 hours)
@@ -74,20 +79,23 @@ async def get_database_stats():
 
         yesterday = (datetime.now() - timedelta(days=1)).isoformat()
         recent_response = (
-            client.table("tools").select("id", count="exact").gte("created_at", yesterday).execute()
+            client.table("tools")
+            .select("id", count="exact")  # type: ignore[arg-type]
+            .gte("created_at", yesterday)
+            .execute()
         )
         recent_tools = recent_response.count or 0
 
         # Get tools by source
         sources_response = client.table("tools").select("source").execute()
-        source_counts = {}
+        source_counts: Dict[str, int] = {}
         if sources_response.data:
             for row in sources_response.data:
                 source = row.get("source", "unknown")
                 source_counts[source] = source_counts.get(source, 0) + 1
 
         sources = [{"source": k, "count": v} for k, v in source_counts.items()]
-        sources.sort(key=lambda x: x["count"], reverse=True)
+        sources.sort(key=lambda x: x["count"], reverse=True)  # type: ignore[arg-type,return-value]
 
         return {
             "categories_count": categories_count,
@@ -101,7 +109,7 @@ async def get_database_stats():
 
 
 @app.delete("/admin/clear-tools")
-async def clear_tools(source: str = None):
+async def clear_tools(source: Optional[str] = None) -> dict[str, Any]:
     """Clear tools from database, optionally by source"""
     try:
         client = db_connection.get_client()
@@ -120,7 +128,7 @@ async def clear_tools(source: str = None):
         raise HTTPException(status_code=500, detail="Failed to clear tools")
 
 
-async def run_scraper_task(max_pages: int = 10):
+async def run_scraper_task(max_pages: int = 10) -> None:
     """Background task to run the scraper"""
     try:
         logger.info(f"Starting scraper task with max_pages={max_pages}")
