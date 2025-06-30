@@ -16,7 +16,8 @@ class DatabaseConnection:
         if self._client is None:
             try:
                 self._client = cast(
-                    Client, create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+                    Client,
+                    create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY),
                 )
                 logger.info("Supabase client created successfully")
             except Exception as e:

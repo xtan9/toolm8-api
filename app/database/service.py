@@ -83,7 +83,8 @@ class DatabaseService:
         """Get tools that contain any of the specified tags"""
         client = db_connection.get_client()
         try:
-            # Use PostgreSQL array overlap operator to find tools with matching tags
+            # Use PostgreSQL array overlap operator to find tools with
+            # matching tags
             response = (
                 client.table("tools")
                 .select("*")

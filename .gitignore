@@ -80,6 +80,7 @@ temp/
 # Cache
 .cache/
 *.cache
+.mypy_cache/
 
 # MCP
 .mcp.json

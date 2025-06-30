@@ -2,10 +2,9 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict, Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 
 from app.database.connection import db_connection
-from app.database.service import db_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,19 +44,6 @@ async def health_check() -> dict[str, str]:
     return {"status": "healthy", "service": "toolm8-data-api"}
 
 
-@app.post("/admin/scrape-tools")
-async def scrape_tools_endpoint(
-    background_tasks: BackgroundTasks, max_pages: int = 10
-) -> dict[str, str]:
-    """Start scraping tools from theresanaiforthat.com"""
-    try:
-        background_tasks.add_task(run_scraper_task, max_pages)
-        return {"message": f"Scraping started for {max_pages} pages in background"}
-    except Exception as e:
-        logger.error(f"Error starting scraper: {e}")
-        raise HTTPException(status_code=500, detail="Failed to start scraping")
-
-
 @app.get("/admin/stats")
 async def get_database_stats() -> dict[str, Any]:
     """Get database statistics"""
@@ -66,12 +52,16 @@ async def get_database_stats() -> dict[str, Any]:
 
         # Get categories count
         categories_response = (
-            client.table("categories").select("id", count="exact").execute()  # type: ignore[arg-type]
+            client.table("categories")
+            .select("id", count="exact")  # type: ignore[arg-type]
+            .execute()
         )
         categories_count = categories_response.count or 0
 
         # Get tools count
-        tools_response = client.table("tools").select("id", count="exact").execute()  # type: ignore[arg-type]
+        tools_response = (
+            client.table("tools").select("id", count="exact").execute()  # type: ignore[arg-type]
+        )
         tools_count = tools_response.count or 0
 
         # Get recent tools (last 24 hours)
@@ -126,26 +116,6 @@ async def clear_tools(source: Optional[str] = None) -> dict[str, Any]:
     except Exception as e:
         logger.error(f"Error clearing tools: {e}")
         raise HTTPException(status_code=500, detail="Failed to clear tools")
-
-
-async def run_scraper_task(max_pages: int = 10) -> None:
-    """Background task to run the scraper"""
-    try:
-        logger.info(f"Starting scraper task with max_pages={max_pages}")
-        from app.scraper.theresanaiforthat import TheresAnAIForThatScraper
-
-        async with TheresAnAIForThatScraper() as scraper:
-            tools = await scraper.scrape_all_tools(max_pages=max_pages)
-
-            if tools:
-                logger.info(f"Inserting {len(tools)} tools into database...")
-                inserted_count = db_service.bulk_insert_tools(tools)
-                logger.info(f"Successfully inserted {inserted_count} tools")
-            else:
-                logger.warning("No tools scraped")
-
-    except Exception as e:
-        logger.error(f"Scraper task failed: {e}")
 
 
 if __name__ == "__main__":

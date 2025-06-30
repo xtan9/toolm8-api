@@ -36,10 +36,6 @@ clean:
 
 # Run basic tests (core functionality + database refactor)
 test:
-	pytest tests/test_basic.py tests/test_models.py tests/test_database.py tests/test_scraper_integration.py -v --disable-warnings
-
-# Run all tests (some may fail due to mocking complexity)
-test-all:
 	pytest
 
 # Run tests with coverage
