@@ -2,7 +2,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
-from app.models import CategoryCreate, ToolCreate
+from app.models import ToolCreate
 from app.database.service import DatabaseService
 
 
@@ -15,15 +15,6 @@ class TestBasicFunctionality:
 
     def test_models_can_be_instantiated(self):
         """Test Pydantic models work correctly"""
-        # Test CategoryCreate
-        category = CategoryCreate(
-            name="Test Category",
-            slug="test-category",
-            description="A test category"
-        )
-        assert category.name == "Test Category"
-        assert category.slug == "test-category"
-        
         # Test ToolCreate
         tool = ToolCreate(
             name="Test Tool",
@@ -34,6 +25,8 @@ class TestBasicFunctionality:
         assert tool.name == "Test Tool"
         assert tool.pricing_type == "free"
         assert tool.quality_score == 5  # Default value
+        assert tool.tags == []  # Default empty list
+        assert tool.features == []  # Default empty list
 
     def test_database_service_creation(self):
         """Test DatabaseService can be instantiated"""
@@ -120,15 +113,21 @@ class TestModelValidation:
                     quality_score=score
                 )
 
-    def test_category_required_fields(self):
-        """Test category model required fields"""
-        # Should work with just name and slug
-        category = CategoryCreate(name="Test", slug="test")
-        assert category.name == "Test"
-        assert category.slug == "test"
-        assert category.display_order == 0  # Default
-        assert category.is_featured is False  # Default
-
-        # Should fail without required fields
-        with pytest.raises(Exception):  # Pydantic ValidationError
-            CategoryCreate(description="Missing required fields")
+    def test_tool_tags_and_features(self):
+        """Test tool tags and features validation"""
+        tool = ToolCreate(
+            name="Test Tool",
+            slug="test-tool",
+            tags=["ai", "productivity"],
+            features=["real-time", "api"]
+        )
+        assert tool.tags == ["ai", "productivity"]
+        assert tool.features == ["real-time", "api"]
+        
+        # Empty lists should work
+        tool_empty = ToolCreate(
+            name="Empty Tool",
+            slug="empty-tool"
+        )
+        assert tool_empty.tags == []
+        assert tool_empty.features == []

@@ -13,7 +13,7 @@ class TestTheresAnAIForThatScraper:
         scraper = TheresAnAIForThatScraper()
         assert scraper.base_url == "https://theresanaiforthat.com"
         assert scraper.rate_limit_delay == 2.5
-        assert isinstance(scraper.category_mapping, dict)
+        assert scraper.scraped_tools == []
 
     @pytest.mark.asyncio 
     async def test_fetch_page_success(self, mock_aiohttp_session):
@@ -86,40 +86,44 @@ class TestTheresAnAIForThatScraper:
         assert result["pricing_type"] == "one-time"
         assert result["has_free_trial"] is False
 
-    @pytest.mark.asyncio
-    async def test_determine_category_id(self):
-        """Test category determination"""
+    def test_enhance_tags(self):
+        """Test tag enhancement based on content analysis"""
         scraper = TheresAnAIForThatScraper()
         
-        # Mock the database service
-        with patch('app.scraper.theresanaiforthat.db_service') as mock_db:
-            mock_categories = [
-                MagicMock(name="Writing & Content", id=1),
-                MagicMock(name="Image Generation", id=2),
-                MagicMock(name="Productivity", id=3)
-            ]
-            mock_db.get_all_categories.return_value = mock_categories
-            
-            # Test writing category detection
-            category_id = await scraper.determine_category_id(
-                ["writing", "content"], 
-                "AI tool for writing and content creation"
-            )
-            assert category_id == 1
-            
-            # Test image category detection
-            category_id = await scraper.determine_category_id(
-                ["image", "generation"],
-                "Generate images with AI"
-            )
-            assert category_id == 2
-            
-            # Test fallback to productivity
-            category_id = await scraper.determine_category_id(
-                ["unknown"],
-                "Some unknown tool"
-            )
-            assert category_id == 3
+        # Test writing content detection
+        enhanced_tags = scraper.enhance_tags(
+            ["ai"], 
+            "AI tool for writing and content creation",
+            "Writing Assistant"
+        )
+        assert "writing" in enhanced_tags
+        assert "ai" in enhanced_tags
+        
+        # Test image generation detection
+        enhanced_tags = scraper.enhance_tags(
+            ["generator"], 
+            "Generate images with AI",
+            "Image Creator"
+        )
+        assert "image-generation" in enhanced_tags
+        assert "ai" in enhanced_tags
+        
+        # Test development tools detection
+        enhanced_tags = scraper.enhance_tags(
+            ["tool"], 
+            "Code assistance and programming help",
+            "DevHelper"
+        )
+        assert "development" in enhanced_tags
+        assert "ai" in enhanced_tags
+        
+        # Test tag limit (max 10 tags)
+        enhanced_tags = scraper.enhance_tags(
+            ["tag1", "tag2", "tag3"], 
+            "writing image video development data marketing audio design productivity research",
+            "Multi Tool"
+        )
+        assert len(enhanced_tags) <= 10
 
     def test_clean_text(self):
         """Test text cleaning"""
@@ -149,7 +153,7 @@ class TestTheresAnAIForThatScraper:
         
         features = scraper.extract_features(description, tags)
         
-        assert "API" in features
+        assert "Api" in features
         assert "Real Time" in features
         assert "Cloud" in features
         assert "Automation" in features
@@ -281,8 +285,6 @@ class TestTheresAnAIForThatScraper:
             with patch('app.scraper.theresanaiforthat.db_service') as mock_db:
                 mock_db.generate_slug.side_effect = lambda x: x.lower().replace(" ", "-")
                 mock_db.check_duplicate_tool.return_value = False
-                mock_categories = [MagicMock(name="Productivity", id=1)]
-                mock_db.get_all_categories.return_value = mock_categories
                 
                 result = await scraper.scrape_all_tools(max_pages=2)
         

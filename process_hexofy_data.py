@@ -20,89 +20,48 @@ logger = logging.getLogger(__name__)
 
 class HexofyDataProcessor:
     def __init__(self):
-        self.categories_map = {}
-        self.setup_categories()
-        
-    def setup_categories(self):
-        """Set up category mapping"""
-        categories = db_service.get_all_categories()
-        self.categories_map = {cat.name: cat.id for cat in categories}
-        logger.info(f"Available categories: {list(self.categories_map.keys())}")
+        logger.info("Hexofy data processor initialized")
 
-    def determine_category_id(self, tool_name: str, description: str = "", 
-                            category_hint: str = "", tags: List[str] = None) -> int:
-        """Determine category ID based on tool information"""
+    def enhance_tags(self, tool_name: str, description: str = "", 
+                   category_hint: str = "", tags: List[str] = None) -> List[str]:
+        """Enhance tags based on tool information"""
         if tags is None:
             tags = []
+        
+        # Start with existing tags
+        enhanced_tags = set(tags)
+        
+        # Add category hint as tag if provided
+        if category_hint:
+            enhanced_tags.add(category_hint.lower().replace(" ", "-"))
         
         # Combine all text for analysis
         text = f"{tool_name} {description} {category_hint} {' '.join(tags)}".lower()
         
-        # Category keywords mapping (enhanced for better detection)
-        category_keywords = {
-            "Writing & Content": [
-                "writing", "content", "text", "blog", "copy", "editor", "grammar", 
-                "translation", "copywriting", "article", "essay", "creative writing",
-                "content creation", "blogging", "documentation", "seo content"
-            ],
-            "Image Generation": [
-                "image", "photo", "picture", "visual", "art", "design", "graphic", 
-                "logo", "avatar", "illustration", "dalle", "midjourney", "stable diffusion",
-                "ai art", "image creation", "photo editing", "visual content"
-            ],
-            "Video & Animation": [
-                "video", "animation", "motion", "film", "movie", "editing", "streaming",
-                "youtube", "tiktok", "short video", "video creation", "motion graphics",
-                "video editing", "video production", "animated", "gif"
-            ],
-            "Code & Development": [
-                "code", "programming", "development", "software", "api", "github", 
-                "developer", "coding", "copilot", "programming assistant", "code generation",
-                "debugging", "code review", "software engineering", "web development"
-            ],
-            "Data & Analytics": [
-                "data", "analytics", "analysis", "dashboard", "visualization", "chart", 
-                "report", "database", "business intelligence", "data science", 
-                "machine learning", "ai model", "statistics", "metrics"
-            ],
-            "Marketing & SEO": [
-                "marketing", "seo", "social", "campaign", "ads", "email", "growth", 
-                "conversion", "social media", "advertising", "lead generation",
-                "marketing automation", "digital marketing", "brand", "promotion"
-            ],
-            "Audio & Music": [
-                "audio", "music", "voice", "sound", "speech", "podcast", "recording",
-                "voice synthesis", "text to speech", "music generation", "audio editing",
-                "voice cloning", "sound effects", "audio production"
-            ],
-            "Design & UI/UX": [
-                "design", "ui", "ux", "interface", "prototype", "figma", "wireframe",
-                "user experience", "user interface", "web design", "app design",
-                "design system", "mockup", "layout", "visual design"
-            ],
-            "Productivity": [
-                "productivity", "task", "project", "management", "organize", "planning", 
-                "workflow", "automation", "efficiency", "scheduling", "calendar",
-                "note taking", "document", "collaboration", "team work"
-            ],
-            "Research & Learning": [
-                "research", "learning", "education", "study", "knowledge", "academic", 
-                "training", "course", "tutorial", "teaching", "e-learning",
-                "knowledge base", "information", "reference", "search"
-            ]
+        # Simple tag mapping for common categories
+        tag_keywords = {
+            "writing": ["writing", "content", "text", "blog", "copy", "editor"],
+            "image-generation": ["image", "photo", "picture", "visual", "art", "graphic"],
+            "video": ["video", "animation", "motion", "film", "movie", "editing"],
+            "development": ["code", "programming", "development", "software", "api"],
+            "data": ["data", "analytics", "analysis", "dashboard", "visualization"],
+            "marketing": ["marketing", "seo", "social", "campaign", "ads"],
+            "audio": ["audio", "music", "voice", "sound", "speech", "podcast"],
+            "design": ["design", "ui", "ux", "interface", "prototype"],
+            "productivity": ["productivity", "task", "project", "management"],
+            "research": ["research", "learning", "education", "study"]
         }
         
-        # Score each category
-        best_category = "Productivity"  # Default fallback
-        best_score = 0
+        # Add relevant tags based on content
+        for tag, keywords in tag_keywords.items():
+            if any(keyword in text for keyword in keywords):
+                enhanced_tags.add(tag)
         
-        for category, keywords in category_keywords.items():
-            score = sum(1 for keyword in keywords if keyword in text)
-            if score > best_score:
-                best_score = score
-                best_category = category
+        # Add general AI tag if not present
+        if not any(tag.lower() in ["ai", "artificial-intelligence"] for tag in enhanced_tags):
+            enhanced_tags.add("ai")
         
-        return self.categories_map.get(best_category, self.categories_map.get("Productivity", 1))
+        return sorted(list(enhanced_tags))[:10]  # Limit to 10 tags
 
     def extract_pricing_info(self, pricing_text: str) -> Dict[str, Any]:
         """Extract pricing information from text"""
@@ -271,9 +230,6 @@ class HexofyDataProcessor:
                 logger.info(f"Skipping duplicate tool: {name}")
                 return None
             
-            # Determine category
-            category_id = self.determine_category_id(name, description, category_hint)
-            
             # Extract pricing info
             pricing_info = self.extract_pricing_info(pricing_text)
             
@@ -283,16 +239,15 @@ class HexofyDataProcessor:
             # Calculate quality score
             quality_score = self.calculate_quality_score(name, description, website_url, features)
             
-            # Create tags
-            tags = self.extract_tags(name, description, category_hint)
+            # Enhance tags using the enhanced method
+            enhanced_tags = self.enhance_tags(name, description, category_hint)
             
             tool = ToolCreate(
                 name=name,
                 slug=slug,
                 description=description[:500] if description else f"AI tool: {name}",
                 website_url=website_url,
-                category_id=category_id,
-                tags=tags[:8],  # Limit to 8 tags
+                tags=enhanced_tags[:10],  # Limit to 10 tags
                 features=features[:10],  # Limit to 10 features
                 pricing_type=pricing_info["pricing_type"],
                 has_free_trial=pricing_info["has_free_trial"],
@@ -328,26 +283,6 @@ class HexofyDataProcessor:
         
         return features[:10]
 
-    def extract_tags(self, name: str, description: str, category_hint: str) -> List[str]:
-        """Extract relevant tags"""
-        text = f"{name} {description} {category_hint}".lower()
-        
-        common_tags = [
-            "ai", "artificial intelligence", "machine learning", "automation",
-            "productivity", "business", "creative", "design", "development",
-            "marketing", "writing", "image", "video", "audio", "data"
-        ]
-        
-        tags = []
-        for tag in common_tags:
-            if tag in text and tag not in tags:
-                tags.append(tag)
-        
-        # Add category hint as tag if available
-        if category_hint and category_hint.lower() not in tags:
-            tags.append(category_hint.lower())
-        
-        return tags[:8]
 
     def calculate_quality_score(self, name: str, description: str, 
                               website_url: Optional[str], features: List[str]) -> int:
@@ -390,17 +325,17 @@ def process_hexofy_data(file_path: str):
         logger.info(f"Successfully inserted {inserted_count} tools from Hexofy data")
         
         # Log some statistics
-        categories_used = {}
+        tag_usage = {}
         pricing_types = {}
         for tool in tools:
-            cat_name = next((name for name, id in processor.categories_map.items() 
-                           if id == tool.category_id), "Unknown")
-            categories_used[cat_name] = categories_used.get(cat_name, 0) + 1
+            # Count tag usage
+            for tag in tool.tags:
+                tag_usage[tag] = tag_usage.get(tag, 0) + 1
             pricing_types[tool.pricing_type] = pricing_types.get(tool.pricing_type, 0) + 1
         
-        logger.info("Category distribution:")
-        for cat, count in sorted(categories_used.items(), key=lambda x: x[1], reverse=True):
-            logger.info(f"  {cat}: {count} tools")
+        logger.info("Top tags distribution:")
+        for tag, count in sorted(tag_usage.items(), key=lambda x: x[1], reverse=True)[:10]:
+            logger.info(f"  {tag}: {count} tools")
         
         logger.info("Pricing distribution:")
         for pricing, count in sorted(pricing_types.items(), key=lambda x: x[1], reverse=True):

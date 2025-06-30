@@ -1,49 +1,7 @@
 import pytest
 from pydantic import ValidationError
-from app.models import Category, CategoryCreate, Tool, ToolCreate
+from app.models import Tool, ToolCreate
 
-
-class TestCategoryModels:
-    
-    def test_category_create_valid(self):
-        """Test CategoryCreate with valid data"""
-        data = {
-            "name": "Test Category",
-            "slug": "test-category",
-            "description": "A test category",
-            "display_order": 1,
-            "is_featured": True
-        }
-        category = CategoryCreate(**data)
-        assert category.name == "Test Category"
-        assert category.slug == "test-category"
-        assert category.is_featured is True
-
-    def test_category_create_required_fields(self):
-        """Test CategoryCreate with only required fields"""
-        data = {
-            "name": "Minimal Category",
-            "slug": "minimal-category"
-        }
-        category = CategoryCreate(**data)
-        assert category.name == "Minimal Category"
-        assert category.description is None
-        assert category.display_order == 0
-        assert category.is_featured is False
-
-    def test_category_create_name_too_long(self):
-        """Test CategoryCreate with name too long"""
-        data = {
-            "name": "x" * 101,  # Exceeds 100 char limit
-            "slug": "test"
-        }
-        with pytest.raises(ValidationError):
-            CategoryCreate(**data)
-
-    def test_category_create_missing_required(self):
-        """Test CategoryCreate missing required fields"""
-        with pytest.raises(ValidationError):
-            CategoryCreate(description="Missing name and slug")
 
 
 class TestToolModels:
@@ -57,7 +15,6 @@ class TestToolModels:
             "website_url": "https://example.com",
             "pricing_type": "freemium",
             "has_free_trial": True,
-            "category_id": 1,
             "tags": ["ai", "test"],
             "features": ["API"],
             "quality_score": 8

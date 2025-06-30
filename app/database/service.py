@@ -4,32 +4,12 @@ from typing import List, Optional
 from slugify import slugify
 
 from app.database.connection import db_connection
-from app.models import Category, CategoryCreate, Tool, ToolCreate
+from app.models import Tool, ToolCreate
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseService:
-    def insert_category(self, category: CategoryCreate) -> Optional[Category]:
-        client = db_connection.get_client()
-        try:
-            data = {
-                "name": category.name,
-                "slug": category.slug,
-                "description": category.description,
-                "display_order": category.display_order,
-                "is_featured": category.is_featured,
-            }
-
-            response = client.table("categories").insert(data).execute()
-
-            if response.data and len(response.data) > 0:
-                return Category(**response.data[0])
-            return None
-        except Exception as e:
-            logger.error(f"Error inserting category: {e}")
-            return None
-
     def insert_tool(self, tool: ToolCreate) -> Optional[Tool]:
         client = db_connection.get_client()
         try:
@@ -42,7 +22,6 @@ class DatabaseService:
                 "pricing_type": tool.pricing_type,
                 "price_range": tool.price_range,
                 "has_free_trial": tool.has_free_trial,
-                "category_id": tool.category_id,
                 "tags": tool.tags,
                 "features": tool.features,
                 "quality_score": tool.quality_score,
@@ -76,7 +55,6 @@ class DatabaseService:
                         "pricing_type": tool.pricing_type,
                         "price_range": tool.price_range,
                         "has_free_trial": tool.has_free_trial,
-                        "category_id": tool.category_id,
                         "tags": tool.tags,
                         "features": tool.features,
                         "quality_score": tool.quality_score,
@@ -101,15 +79,17 @@ class DatabaseService:
         logger.info(f"Bulk inserted {inserted_count} tools")
         return inserted_count
 
-    def get_tools_by_category(
-        self, category_id: int, limit: int = 50, offset: int = 0
+    def get_tools_by_tags(
+        self, tags: List[str], limit: int = 50, offset: int = 0
     ) -> List[Tool]:
+        """Get tools that contain any of the specified tags"""
         client = db_connection.get_client()
         try:
+            # Use PostgreSQL array overlap operator to find tools with matching tags
             response = (
                 client.table("tools")
                 .select("*")
-                .eq("category_id", category_id)
+                .overlaps("tags", tags)
                 .order("popularity_score", desc=True)
                 .order("quality_score", desc=True)
                 .limit(limit)
@@ -121,7 +101,88 @@ class DatabaseService:
                 return [Tool(**item) for item in response.data]
             return []
         except Exception as e:
-            logger.error(f"Error getting tools by category: {e}")
+            logger.error(f"Error getting tools by tags: {e}")
+            return []
+
+    def get_all_tools(self, limit: int = 50, offset: int = 0) -> List[Tool]:
+        """Get all tools with pagination"""
+        client = db_connection.get_client()
+        try:
+            response = (
+                client.table("tools")
+                .select("*")
+                .order("popularity_score", desc=True)
+                .order("quality_score", desc=True)
+                .limit(limit)
+                .offset(offset)
+                .execute()
+            )
+
+            if response.data:
+                return [Tool(**item) for item in response.data]
+            return []
+        except Exception as e:
+            logger.error(f"Error getting all tools: {e}")
+            return []
+
+    def get_featured_tools(self, limit: int = 20) -> List[Tool]:
+        """Get featured tools"""
+        client = db_connection.get_client()
+        try:
+            response = (
+                client.table("tools")
+                .select("*")
+                .eq("is_featured", True)
+                .order("popularity_score", desc=True)
+                .order("quality_score", desc=True)
+                .limit(limit)
+                .execute()
+            )
+
+            if response.data:
+                return [Tool(**item) for item in response.data]
+            return []
+        except Exception as e:
+            logger.error(f"Error getting featured tools: {e}")
+            return []
+
+    def search_tools(self, query: str, limit: int = 50, offset: int = 0) -> List[Tool]:
+        """Search tools by name and description"""
+        client = db_connection.get_client()
+        try:
+            response = (
+                client.table("tools")
+                .select("*")
+                .or_(f"name.ilike.%{query}%,description.ilike.%{query}%")
+                .order("popularity_score", desc=True)
+                .order("quality_score", desc=True)
+                .limit(limit)
+                .offset(offset)
+                .execute()
+            )
+
+            if response.data:
+                return [Tool(**item) for item in response.data]
+            return []
+        except Exception as e:
+            logger.error(f"Error searching tools: {e}")
+            return []
+
+    def get_all_tags(self) -> List[str]:
+        """Get all unique tags from all tools"""
+        client = db_connection.get_client()
+        try:
+            response = client.table("tools").select("tags").execute()
+            
+            if response.data:
+                all_tags = set()
+                for row in response.data:
+                    if row.get("tags"):
+                        all_tags.update(row["tags"])
+                return sorted(list(all_tags))
+            return []
+        except Exception as e:
+            logger.error(f"Error getting all tags: {e}")
             return []
 
     def check_duplicate_tool(
@@ -168,36 +229,6 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Error checking duplicate tool: {e}")
             return False
-
-    def get_all_categories(self) -> List[Category]:
-        client = db_connection.get_client()
-        try:
-            response = (
-                client.table("categories")
-                .select("*")
-                .order("display_order")
-                .order("name")
-                .execute()
-            )
-
-            if response.data:
-                return [Category(**item) for item in response.data]
-            return []
-        except Exception as e:
-            logger.error(f"Error getting categories: {e}")
-            return []
-
-    def find_category_by_name(self, name: str) -> Optional[Category]:
-        client = db_connection.get_client()
-        try:
-            response = client.table("categories").select("*").ilike("name", name).execute()
-
-            if response.data and len(response.data) > 0:
-                return Category(**response.data[0])
-            return None
-        except Exception as e:
-            logger.error(f"Error finding category by name: {e}")
-            return None
 
     def generate_slug(self, text: str) -> str:
         return slugify(text, lowercase=True, max_length=200)

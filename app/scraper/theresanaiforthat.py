@@ -20,30 +20,6 @@ class TheresAnAIForThatScraper:
         self.session = None
         self.rate_limit_delay = 2.5
         self.scraped_tools = []
-        self.category_mapping = {
-            "writing": ["Writing & Content"],
-            "content": ["Writing & Content"],
-            "image": ["Image Generation"],
-            "photo": ["Image Generation"],
-            "video": ["Video & Animation"],
-            "animation": ["Video & Animation"],
-            "code": ["Code & Development"],
-            "programming": ["Code & Development"],
-            "development": ["Code & Development"],
-            "data": ["Data & Analytics"],
-            "analytics": ["Data & Analytics"],
-            "marketing": ["Marketing & SEO"],
-            "seo": ["Marketing & SEO"],
-            "audio": ["Audio & Music"],
-            "music": ["Audio & Music"],
-            "design": ["Design & UI/UX"],
-            "ui": ["Design & UI/UX"],
-            "ux": ["Design & UI/UX"],
-            "productivity": ["Productivity"],
-            "research": ["Research & Learning"],
-            "learning": ["Research & Learning"],
-            "education": ["Research & Learning"],
-        }
 
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(
@@ -89,19 +65,35 @@ class TheresAnAIForThatScraper:
         else:
             return {"pricing_type": "freemium", "has_free_trial": False}
 
-    async def determine_category_id(self, tags: List[str], description: str = "") -> Optional[int]:
-        text_to_check = " ".join(tags + [description]).lower()
-
-        categories = db_service.get_all_categories()
-        category_map = {cat.name: cat.id for cat in categories}
-
-        for keyword, category_names in self.category_mapping.items():
-            if keyword in text_to_check:
-                for cat_name in category_names:
-                    if cat_name in category_map:
-                        return category_map[cat_name]
-
-        return category_map.get("Productivity")
+    def enhance_tags(self, tags: List[str], description: str = "", name: str = "") -> List[str]:
+        """Enhance tags based on content analysis"""
+        text_to_check = f"{name} {description} {' '.join(tags)}".lower()
+        
+        # Common AI tool categories as tags
+        category_keywords = {
+            "writing": ["writing", "content", "text", "blog", "copy", "editor", "grammar"],
+            "image-generation": ["image", "photo", "picture", "visual", "art", "design", "graphic"],
+            "video": ["video", "animation", "motion", "film", "movie", "editing"],
+            "development": ["code", "programming", "development", "software", "api", "github"],
+            "data": ["data", "analytics", "analysis", "dashboard", "visualization"],
+            "marketing": ["marketing", "seo", "social", "campaign", "ads", "email"],
+            "audio": ["audio", "music", "voice", "sound", "speech", "podcast"],
+            "design": ["design", "ui", "ux", "interface", "prototype", "figma"],
+            "productivity": ["productivity", "task", "project", "management", "organize"],
+            "research": ["research", "learning", "education", "study", "knowledge"],
+        }
+        
+        enhanced_tags = set(tags)  # Start with existing tags
+        
+        for category_tag, keywords in category_keywords.items():
+            if any(keyword in text_to_check for keyword in keywords):
+                enhanced_tags.add(category_tag)
+        
+        # Add general AI tag if not present
+        if not any(tag.lower() in ["ai", "artificial-intelligence"] for tag in enhanced_tags):
+            enhanced_tags.add("ai")
+        
+        return sorted(list(enhanced_tags))[:10]  # Limit to 10 tags
 
     def clean_text(self, text: str) -> str:
         if not text:
@@ -279,10 +271,13 @@ class TheresAnAIForThatScraper:
                 if not is_duplicate:
                     tool_data["slug"] = slug
 
-                    category_id = await self.determine_category_id(
-                        tool_data.get("tags", []), tool_data.get("description", "")
+                    # Enhance tags based on content analysis
+                    enhanced_tags = self.enhance_tags(
+                        tool_data.get("tags", []), 
+                        tool_data.get("description", ""),
+                        tool_data.get("name", "")
                     )
-                    tool_data["category_id"] = category_id
+                    tool_data["tags"] = enhanced_tags
 
                     try:
                         tool = ToolCreate(**tool_data)
