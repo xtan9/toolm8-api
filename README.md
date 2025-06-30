@@ -19,13 +19,18 @@ toolm8_api/
 │   ├── database/
 │   │   ├── schema.sql          # Database schema
 │   │   ├── connection.py       # Database connection
-│   │   ├── service.py          # Database service layer
-│   │   └── seed.py            # Category seeding script
+│   │   └── service.py          # Database service layer
+│   ├── routers/
+│   │   ├── health.py           # Health check endpoints
+│   │   └── admin.py            # Admin management endpoints
 │   ├── scraper/
 │   │   └── theresanaiforthat.py # Web scraper
 │   ├── models.py              # Pydantic models
 │   ├── config.py              # Configuration
 │   └── main.py                # FastAPI application
+├── tests/
+│   ├── test_health_router.py   # Health endpoint tests
+│   └── test_admin_router.py    # Admin endpoint tests
 ├── requirements.txt
 ├── .env.example
 └── run.py                     # Setup and run script
@@ -100,8 +105,13 @@ python app/main.py
 # Or: uvicorn app.main:app --reload
 ```
 
-### Admin API Endpoints
-- `GET /health` - Health check
+### API Endpoints
+
+**Health Endpoints:**
+- `GET /` - Root endpoint with API information
+- `GET /health` - Health check status
+
+**Admin Endpoints:**
 - `GET /admin/stats` - Database statistics and monitoring
 - `POST /admin/seed-categories` - Seed categories (background task)
 - `POST /admin/scrape-tools?max_pages=10` - Start scraping tools (background task)
@@ -142,14 +152,15 @@ make test-file FILE=tests/test_basic.py
 ```
 
 **Test Coverage:**
+- ✅ Health router endpoints (root, health check)
+- ✅ Admin router endpoints (stats and management)
 - ✅ Model validation and Pydantic schemas
-- ✅ API endpoints (health, admin operations)
 - ✅ Configuration management  
 - ✅ Database service layer (with mocked connections)
 - ✅ Web scraper functionality
 - ✅ Error handling and edge cases
 
-Current test coverage: **30%+** with focus on core functionality.
+Current test coverage focuses on core functionality with modular router testing.
 
 ## Expected Results
 

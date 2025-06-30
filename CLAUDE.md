@@ -18,6 +18,7 @@ This is a **data management service** for an AI tools directory. It's focused on
 - `tools` - AI tools with metadata, pricing, quality scores, categorization
 
 ## Key Admin Endpoints
+
 - `POST /admin/scrape-tools?max_pages=10` - Start scraping (background task)
 - `GET /admin/stats` - Database statistics and monitoring
 - `DELETE /admin/clear-tools?source=X` - Clear tools by source
@@ -91,3 +92,9 @@ The service is designed to run periodically to keep the AI tools database fresh 
 
 - make sure to run existing tests, lint, typecheck... all necessary checks after code change to make sure it doesn't break anything.
 - make sure to add new tests after code changes.
+
+## Development Best Practices
+
+- Always run existing tests and add new tests
+- Update README when necessary after code changes
+- Run lint and fix lint errors everytime after code change
