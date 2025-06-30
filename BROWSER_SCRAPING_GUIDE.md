@@ -190,9 +190,6 @@ Many sites load more content as you scroll:
 
 ### Sample Commands
 ```bash
-# First, seed categories if not done
-python -c "from app.database.seed import seed_categories; seed_categories()"
-
 # Process your scraped data
 python process_hexofy_data.py my_scraped_tools.csv
 

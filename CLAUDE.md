@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a **data management service** for an AI tools directory. It's focused on scraping, seeding, and managing AI tools data from various sources. This is an **internal/admin service** for data collection, NOT a public-facing API.
+This is a **data management service** for an AI tools directory. It's focused on scraping and managing AI tools data from various sources. This is an **internal/admin service** for data collection, NOT a public-facing API.
 
 ## Tech Stack
 
@@ -18,8 +18,6 @@ This is a **data management service** for an AI tools directory. It's focused on
 - `tools` - AI tools with metadata, pricing, quality scores, categorization
 
 ## Key Admin Endpoints
-
-- `POST /admin/seed-categories` - Seed initial categories
 - `POST /admin/scrape-tools?max_pages=10` - Start scraping (background task)
 - `GET /admin/stats` - Database statistics and monitoring
 - `DELETE /admin/clear-tools?source=X` - Clear tools by source

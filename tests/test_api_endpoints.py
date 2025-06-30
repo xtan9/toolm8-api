@@ -20,13 +20,6 @@ class TestAPIEndpoints:
         assert data["status"] == "healthy"
         assert data["service"] == "toolm8-data-api"
 
-    @patch('app.main.seed_categories')
-    def test_seed_categories_endpoint(self, mock_seed, client):
-        """Test seed categories endpoint"""
-        response = client.post("/admin/seed-categories")
-        assert response.status_code == 200
-        data = response.json()
-        assert "Category seeding started" in data["message"]
 
     @patch('app.main.run_scraper_task')
     def test_scrape_tools_endpoint(self, mock_scraper, client):
@@ -103,15 +96,6 @@ class TestAPIEndpoints:
         assert "Cleared tools from source: theresanaiforthat" in data["message"]
         assert data["rows_deleted"] == 300
 
-    @patch('app.main.seed_categories')
-    def test_seed_categories_endpoint_error(self, mock_seed, client):
-        """Test seed categories endpoint with error"""
-        mock_seed.side_effect = Exception("Seeding failed")
-        
-        response = client.post("/admin/seed-categories")
-        assert response.status_code == 500
-        data = response.json()
-        assert data["detail"] == "Failed to start seeding"
 
     @patch('app.main.run_scraper_task')
     def test_scrape_tools_endpoint_error(self, mock_scraper, client):
@@ -153,7 +137,7 @@ class TestAPIErrorHandling:
 
     def test_invalid_method(self, client):
         """Test invalid HTTP method"""
-        response = client.put("/admin/seed-categories")
+        response = client.put("/admin/stats")  # Use existing endpoint
         assert response.status_code == 405
 
     def test_invalid_query_params(self, client):

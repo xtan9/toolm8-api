@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 
 from app.database.connection import db_connection
-from app.database.seed import seed_categories
 from app.database.service import db_service
 
 logging.basicConfig(level=logging.INFO)
@@ -43,17 +42,6 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "toolm8-data-api"}
-
-
-@app.post("/admin/seed-categories")
-async def seed_categories_endpoint(background_tasks: BackgroundTasks):
-    """Seed the database with initial categories"""
-    try:
-        background_tasks.add_task(seed_categories)
-        return {"message": "Category seeding started in background"}
-    except Exception as e:
-        logger.error(f"Error starting category seeding: {e}")
-        raise HTTPException(status_code=500, detail="Failed to start seeding")
 
 
 @app.post("/admin/scrape-tools")

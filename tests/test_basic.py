@@ -75,7 +75,7 @@ class TestAPIBasics:
     def test_invalid_method(self):
         """Test invalid HTTP method returns 405"""
         client = TestClient(app)
-        response = client.put("/admin/seed-categories")
+        response = client.put("/admin/stats")  # Use existing endpoint
         assert response.status_code == 405
 
 

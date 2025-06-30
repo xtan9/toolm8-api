@@ -179,26 +179,21 @@ After importing:
 
 - **Hexofy Support**: Check their academy and documentation
 - **Data Issues**: Review the processor logs for specific errors
-- **Database Problems**: Ensure categories are seeded first
+- **Database Problems**: Ensure categories exist in database
 
 ## Example Workflow
 
-1. **Seed Categories**
-   ```bash
-   python -c "from app.database.seed import seed_categories; seed_categories()"
-   ```
-
-2. **Scrape with Hexofy**
+1. **Scrape with Hexofy**
    - Visit Product Hunt AI category
    - Use Hexofy to scrape 50-100 tools
    - Export as CSV
 
-3. **Process Data**
+2. **Process Data**
    ```bash
    python process_hexofy_data.py producthunt_ai_tools.csv
    ```
 
-4. **Verify Results**
+3. **Verify Results**
    ```bash
    curl http://localhost:8000/admin/stats
    ```
