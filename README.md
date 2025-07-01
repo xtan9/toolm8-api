@@ -183,31 +183,49 @@ curl -X POST "http://localhost:8000/admin/import-csv" \
 
 ### Adding New CSV Sources
 
-1. **Create Parser**: Implement CSV parser for your source format
-2. **Create Importer**: Extend `BaseCSVImporter` class
-3. **Register Source**: Add to `CSVImporterFactory`
-4. **Use Existing Endpoint**: No new endpoints needed
+The system is **parser-centric** - the parser is the most important component since each source has completely different CSV formats. The importer logic is mostly the same (bulk operations), but parsing is source-specific.
 
-Example:
+**1. Create Parser (MOST IMPORTANT)**: 
 ```python
-# 1. Create parser
-class ProductHuntCSVParser:
-    def parse_csv_content(self, content: str) -> List[Dict]:
-        # Parse ProductHunt CSV format
-        pass
-
-# 2. Create importer  
-class ProductHuntCSVImporter(BaseCSVImporter):
+class ProductHuntCSVParser(BaseCSVParser):
     @property
     def source_name(self) -> str:
         return "producthunt.com"
     
+    @property  
+    def expected_columns(self) -> List[str]:
+        return ["name", "tagline", "description", "website", "upvotes"]
+    
+    def validate_csv_format(self, csv_content: str) -> bool:
+        # Validate ProductHunt format
+        pass
+        
+    def parse_csv_content(self, content: str) -> List[Dict]:
+        # Transform ProductHunt CSV → Standard tool format
+        # Handle ProductHunt-specific columns: "upvotes", "maker", "launch_date"
+        # Extract features based on ProductHunt metrics
+        pass
+```
+
+**2. Create Simple Importer** (just connects parser):
+```python
+class ProductHuntCSVImporter(BaseCSVImporter):
     def get_parser(self):
         return ProductHuntCSVParser()
-
-# 3. Register in factory
-CSVImporterFactory.register_importer("producthunt", ProductHuntCSVImporter)
 ```
+
+**3. Register & Use**:
+```python
+CSVImporterFactory.register_importer("producthunt", ProductHuntCSVImporter)
+# Now works with existing endpoint: source=producthunt
+```
+
+**Key Insight**: Different sources have vastly different formats:
+- **TAAFT**: `ai_link`, `task_label`, `external_ai_link href`
+- **ProductHunt**: `name`, `tagline`, `maker`, `upvotes` 
+- **AngelList**: `company_name`, `funding_stage`, `investors`
+
+The parser handles these differences and converts everything to the standard tool format.
 
 ## Scraper Features
 

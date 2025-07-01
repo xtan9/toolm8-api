@@ -40,8 +40,13 @@ class BaseCSVImporter(ABC):
             Dict: Import results with counts and details
         """
         try:
-            # Parse CSV content using source-specific parser
+            # Get source-specific parser and validate format
             parser = self.get_parser()
+
+            # Validate CSV format before parsing
+            parser.validate_csv_format(csv_content)
+
+            # Parse CSV content
             tools = parser.parse_csv_content(csv_content)
 
             if not tools:

@@ -6,6 +6,8 @@ from typing import Dict, Type
 from app.services.base_csv_importer import BaseCSVImporter
 from app.services.taaft_csv_importer import TAaftCSVImporter
 
+# Example: from app.services.producthunt_csv_importer import ProductHuntCSVImporter
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,6 +18,8 @@ class CSVImporterFactory:
         "taaft": TAaftCSVImporter,
         "theresanaiforthat": TAaftCSVImporter,  # Alias
         "theresanaiforthat.com": TAaftCSVImporter,  # Alias
+        # Example: "producthunt": ProductHuntCSVImporter,
+        # Example: "producthunt.com": ProductHuntCSVImporter,
     }
 
     @classmethod

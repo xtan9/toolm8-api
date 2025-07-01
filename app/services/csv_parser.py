@@ -8,14 +8,66 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from app.services.base_csv_parser import BaseCSVParser
+
 logger = logging.getLogger(__name__)
 
 
-class TAaftCSVParser:
+class TAaftCSVParser(BaseCSVParser):
     """Parser for theresanaiforthat.com CSV scraping results."""
 
     def __init__(self) -> None:
-        self.source = "theresanaiforthat.com"
+        pass
+
+    @property
+    def source_name(self) -> str:
+        """Return the name of the data source."""
+        return "theresanaiforthat.com"
+
+    @property
+    def expected_columns(self) -> List[str]:
+        """Return list of expected columns in TAAFT CSV."""
+        return [
+            "ai_link",
+            "task_label",
+            "external_ai_link href",
+            "taaft_icon src",
+            "ai_launch_date",
+            "stats_views",
+            "saves",
+            "average_rating",
+            "comment_body",
+        ]
+
+    def validate_csv_format(self, csv_content: str) -> bool:
+        """Validate that CSV has TAAFT format."""
+        try:
+            df = pd.read_csv(StringIO(csv_content))
+
+            # Check for required columns
+            required_cols = ["ai_link"]  # Minimum required
+            missing_cols = [col for col in required_cols if col not in df.columns]
+
+            if missing_cols:
+                raise ValueError(
+                    f"Missing required TAAFT columns: {missing_cols}. "
+                    f"Expected columns: {self.expected_columns}"
+                )
+
+            return True
+
+        except Exception as e:
+            raise ValueError(f"Invalid TAAFT CSV format: {str(e)}")
+
+    def get_sample_csv_format(self) -> str:
+        """Return sample TAAFT CSV format."""
+        return (
+            "# Sample TAAFT CSV format:\n"
+            '"taaft_icon src","ai_link","external_ai_link href","task_label",'
+            '"ai_launch_date","stats_views","saves","average_rating","comment_body"\n'
+            '"https://example.com/icon.svg","ChatGPT","https://openai.com/chatgpt",'
+            '"Writing","Free + from $20/mo","1,500","25","4.5","Great AI tool"'
+        )
 
     def parse_csv_content(self, csv_content: str) -> List[Dict[str, Any]]:
         """
@@ -83,8 +135,7 @@ class TAaftCSVParser:
                 "quality_score": self.calculate_quality_score(row),
                 "popularity_score": self.calculate_popularity_score(row),
                 "is_featured": False,  # Default to False
-                "click_count": 0,  # Default to 0
-                "source": self.source,
+                "source": self.source_name,
             }
         except Exception as e:
             logger.warning(f"Error transforming row for {row.get('ai_link', 'unknown')}: {e}")
