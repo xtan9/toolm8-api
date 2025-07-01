@@ -89,7 +89,8 @@ class TAaftCSVParser(BaseCSVParser):
             logger.info(f"Loaded CSV with {len(df)} rows and {len(df.columns)} columns")
 
             # Filter out rows without tool names
-            df = df[df["ai_link"].notna() & (df["ai_link"].str.strip() != "")]
+            mask = df["ai_link"].notna() & (df["ai_link"] != "")
+            df = df[mask]
 
             tools = []
             for idx, row in df.iterrows():
