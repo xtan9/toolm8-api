@@ -1,20 +1,30 @@
-"""CSV import service for bulk tool insertion."""
+"""Base CSV importer service for bulk tool insertion."""
 
 import logging
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
 from app.database.connection import db_connection
-from app.services.csv_parser import TAaftCSVParser
 
 logger = logging.getLogger(__name__)
 
 
-class CSVImporter:
-    """Service for importing tools from CSV data."""
+class BaseCSVImporter(ABC):
+    """Base class for CSV importers from different sources."""
 
     def __init__(self) -> None:
-        self.parser = TAaftCSVParser()
         self.client = db_connection.get_client()
+
+    @property
+    @abstractmethod
+    def source_name(self) -> str:
+        """Return the name of the data source (e.g., 'theresanaiforthat.com')."""
+        pass
+
+    @abstractmethod
+    def get_parser(self) -> Any:
+        """Return the appropriate parser for this source."""
+        pass
 
     async def import_from_csv_content(
         self, csv_content: str, replace_existing: bool = False
@@ -30,13 +40,14 @@ class CSVImporter:
             Dict: Import results with counts and details
         """
         try:
-            # Parse CSV content
-            tools = self.parser.parse_csv_content(csv_content)
+            # Parse CSV content using source-specific parser
+            parser = self.get_parser()
+            tools = parser.parse_csv_content(csv_content)
 
             if not tools:
                 return {
                     "success": False,
-                    "message": "No valid tools found in CSV",
+                    "message": f"No valid tools found in {self.source_name} CSV",
                     "imported": 0,
                     "skipped": 0,
                     "errors": 0,
@@ -47,19 +58,21 @@ class CSVImporter:
 
             return {
                 "success": True,
-                "message": f"Successfully processed {len(tools)} tools",
+                "message": f"Successfully processed {len(tools)} tools from {self.source_name}",
                 "total_parsed": len(tools),
+                "source": self.source_name,
                 **results,
             }
 
         except Exception as e:
-            logger.error(f"Error importing CSV: {e}")
+            logger.error(f"Error importing {self.source_name} CSV: {e}")
             return {
                 "success": False,
-                "message": f"Import failed: {str(e)}",
+                "message": f"Import failed for {self.source_name}: {str(e)}",
                 "imported": 0,
                 "skipped": 0,
                 "errors": 1,
+                "source": self.source_name,
             }
 
     async def bulk_insert_tools(
@@ -83,15 +96,17 @@ class CSVImporter:
                 # Use upsert to insert or update all tools in one request
                 response = self.client.table("tools").upsert(tools, on_conflict="slug").execute()
                 imported = len(response.data) if response.data else 0
-                logger.info(f"Bulk upserted {imported} tools")
+                logger.info(f"Bulk upserted {imported} tools from {self.source_name}")
                 return {"imported": imported, "skipped": 0, "errors": 0}
             else:
                 # Get existing slugs in one query to check for conflicts
                 existing_slugs = set()
                 slugs = [tool["slug"] for tool in tools]
-                
+
                 if slugs:
-                    response = self.client.table("tools").select("slug").in_("slug", slugs).execute()
+                    response = (
+                        self.client.table("tools").select("slug").in_("slug", slugs).execute()
+                    )
                     if response.data:
                         existing_slugs = {row["slug"] for row in response.data}
 
@@ -103,14 +118,16 @@ class CSVImporter:
                     # Insert only new tools in one bulk operation
                     response = self.client.table("tools").insert(new_tools).execute()
                     imported = len(response.data) if response.data else 0
-                    logger.info(f"Bulk inserted {imported} new tools, skipped {skipped_count} existing")
+                    logger.info(
+                        f"Bulk inserted {imported} new tools from {self.source_name}, "
+                        f"skipped {skipped_count} existing"
+                    )
                 else:
                     imported = 0
-                    logger.info(f"All {skipped_count} tools already exist, skipped all")
+                    logger.info(f"All {skipped_count} tools from {self.source_name} already exist")
 
                 return {"imported": imported, "skipped": skipped_count, "errors": 0}
 
         except Exception as e:
-            logger.error(f"Error in bulk insert: {e}")
+            logger.error(f"Error in bulk insert for {self.source_name}: {e}")
             return {"imported": 0, "skipped": 0, "errors": len(tools)}
-
