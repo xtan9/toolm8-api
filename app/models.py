@@ -33,3 +33,14 @@ class Tool(ToolBase):
 
     class Config:
         from_attributes = True
+
+
+class CSVImportResponse(BaseModel):
+    """Response model for CSV import operations."""
+
+    success: bool
+    message: str
+    total_parsed: Optional[int] = None
+    imported: int = 0
+    skipped: int = 0
+    errors: int = 0

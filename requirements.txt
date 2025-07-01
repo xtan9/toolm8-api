@@ -10,6 +10,7 @@ sqlalchemy==2.0.23
 lxml==4.9.3
 python-multipart==0.0.6
 python-slugify==8.0.1
+pandas==2.1.4
 
 # Linting and code quality
 black==23.11.0
